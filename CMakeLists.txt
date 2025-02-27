@@ -123,8 +123,8 @@ if (UNIX AND NOT APPLE)
         endif ()
     endif ()
 
-    include_directories(${ONNXRUNTIME_DIR}/include)  # 包含头文件路径
-    set(ONNXRUNTIME_LIB ${ONNXRUNTIME_DIR}/lib/libonnxruntime.a)  # 静态库路径
+    include_directories(${ONNXRUNTIME_DIR}/include)
+    set(ONNXRUNTIME_LIB ${ONNXRUNTIME_DIR}/lib/libonnxruntime.a)
 
     target_link_libraries(${EXTENSION_NAME}
             ${ONNXRUNTIME_LIB}
@@ -135,7 +135,7 @@ if (UNIX AND NOT APPLE)
     )
 
     foreach (TARGET_LIB ${EXTENSION_NAME} ${LOADABLE_EXTENSION_NAME})
-        target_compile_options(${TARGET_LIB} PRIVATE -fPIC) # 可能需要的编译选项
+        target_compile_options(${TARGET_LIB} PRIVATE -fPIC)
     endforeach ()
 endif ()
 
