@@ -124,7 +124,7 @@ if (UNIX AND NOT APPLE)
     endif ()
 
     include_directories(${ONNXRUNTIME_DIR}/include)
-    set(ONNXRUNTIME_LIB ${ONNXRUNTIME_DIR}/lib/libonnxruntime.a)
+    set(ONNXRUNTIME_LIB ${ONNXRUNTIME_DIR}/lib/libonnxruntime.so)
 
     target_link_libraries(${EXTENSION_NAME}
             ${ONNXRUNTIME_LIB}
