@@ -10,7 +10,6 @@
 
 // OpenSSL linked through vcpkg
 #include <onnxruntime_cxx_api.h>
-#include <openssl/opensslv.h>
 
 namespace duckdb {
 
@@ -88,34 +87,45 @@ inline void OnnxScalarFun(DataChunk &args, ExpressionState &state,
 
   auto &struct_child = StructVector::GetEntries(struct_vector);
 
-  ///
+  UnifiedVectorFormat lhs_data;
+  UnifiedVectorFormat rhs_data;
+  // shape
   Vector &shape_list_vec_ref = *struct_child[0];
+  shape_list_vec_ref.ToUnifiedFormat(count, lhs_data);
+
   auto *shape_list_data =
       reinterpret_cast<list_entry_t *>(FlatVector::GetData(shape_list_vec_ref));
   Vector &shape_list_child_vec = ListVector::GetEntry(shape_list_vec_ref);
   auto *shape_child_data = reinterpret_cast<int32_t *>(
       duckdb::FlatVector::GetData(shape_list_child_vec));
 
-  ///
+  // value
   Vector &value_list_vec_ref = *struct_child[1];
+  value_list_vec_ref.ToUnifiedFormat(count, rhs_data);
   auto *value_list_data =
       reinterpret_cast<list_entry_t *>(FlatVector::GetData(value_list_vec_ref));
   Vector &value_list_child_vec = ListVector::GetEntry(value_list_vec_ref);
 
-  /// run
+  // run
   for (idx_t row = 0; row < count; row++) {
+    auto lhs_list_index = lhs_data.sel->get_index(row);
+    auto rhs_list_index = rhs_data.sel->get_index(row);
+
+    if (!lhs_data.validity.RowIsValid(lhs_list_index) ||
+        !rhs_data.validity.RowIsValid(rhs_list_index)) {
+      FlatVector::SetNull(result, row, true);
+      continue;
+    }
 
     vector<int64_t> shape_std_vec = std::vector<int64_t>();
-    shape_std_vec.reserve(count);
-    list_entry_t list = shape_list_data[row];
+    list_entry_t list = shape_list_data[lhs_list_index];
     for (idx_t child_idx = list.offset; child_idx < list.offset + list.length;
          child_idx++) {
       shape_std_vec.push_back(shape_child_data[child_idx]);
     }
 
     vector<float> value_std_vec = std::vector<float>();
-    value_std_vec.reserve(count);
-    list = value_list_data[row];
+    list = value_list_data[rhs_list_index];
     for (idx_t child_idx = list.offset; child_idx < list.offset + list.length;
          child_idx++) {
       value_std_vec.push_back(
