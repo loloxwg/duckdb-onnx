@@ -1,5 +1,6 @@
 #define DUCKDB_EXTENSION_MAIN
 
+#include <filesystem>
 #include "onnx_extension.hpp"
 #include "duckdb.hpp"
 #include "duckdb/common/exception.hpp"
@@ -21,6 +22,11 @@ struct Tensor {
 void run_onnx_model_and_extract_results(const string &path,
                                         vector<Tensor> input_tensors,
                                         Value &struct_val_list) {
+  // check path exist
+  if (!std::__fs::filesystem::exists(path)) {
+    throw std::runtime_error(
+        std::string("ONNX model file not found: ") + path);
+  };
   Ort::Env ort_env;
   Ort::Session session{ort_env, (path.c_str()), Ort::SessionOptions{nullptr}};
   auto memory_info =
@@ -50,11 +56,23 @@ void run_onnx_model_and_extract_results(const string &path,
       memory_info, output_data.data(), output_size, output_shape.data(),
       output_shape.size());
 
-  const char *input_names[] = {"X"};
-  const char *output_names[] = {"Y"};
+  Ort::AllocatorWithDefaultOptions allocator;
+  const std::string input_name =
+      session.GetInputNameAllocated(0, allocator).get();
+  const std::string output_name =
+      session.GetOutputNameAllocated(0, allocator).get();
 
-  session.Run(Ort::RunOptions{nullptr}, input_names, &input_tensor, 1,
-              output_names, &output_tensor, 1);
+  const char *input_names[] = {input_name.c_str()};
+  const char *output_names[] = {output_name.c_str()};
+
+  try {
+    session.Run(Ort::RunOptions{nullptr}, input_names, &input_tensor, 1,
+                output_names, &output_tensor, 1);
+  } catch (const Ort::Exception &e) {
+    std::string persistent_message = e.what();
+    throw std::runtime_error(std::string("ONNXRuntime error: ") +
+                             persistent_message);
+  }
 
   std::vector<Value> shape_vl_list;
   shape_vl_list.reserve(output_shape.size());
@@ -138,9 +156,14 @@ inline void OnnxScalarFun(DataChunk &args, ExpressionState &state,
     Value struct_val_list;
     try {
       run_onnx_model_and_extract_results(path, onnx_inputs, struct_val_list);
+    } catch (Ort::Exception &e) {
+      throw std::runtime_error(std::string("ONNXRuntime error: ") + e.what());
+    } catch (std::exception &e) {
+      throw std::runtime_error(std::string("General error: ") + e.what());
     } catch (...) {
-      throw std::runtime_error("Onnxruntime error");
+      throw std::runtime_error("Unknown error occurred.");
     }
+
     result.SetValue(row, struct_val_list);
     result.SetVectorType(VectorType::CONSTANT_VECTOR);
   }
