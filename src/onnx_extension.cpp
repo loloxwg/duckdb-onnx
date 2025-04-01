@@ -9,8 +9,6 @@
 #include "duckdb/main/extension_util.hpp"
 #include <duckdb/parser/parsed_data/create_scalar_function_info.hpp>
 
-// OpenSSL linked through vcpkg
-#include <onnxruntime_cxx_api.h>
 
 namespace duckdb {
 
@@ -23,75 +21,14 @@ void run_onnx_model_and_extract_results(const string &path,
                                         vector<Tensor> input_tensors,
                                         Value &struct_val_list) {
   // check path exist
-  if (!std::__fs::filesystem::exists(path)) {
+  if (!std::filesystem::exists(path)) {
     throw std::runtime_error(
         std::string("ONNX model file not found: ") + path);
   };
-  Ort::Env ort_env;
-  Ort::Session session{ort_env, (path.c_str()), Ort::SessionOptions{nullptr}};
-  auto memory_info =
-      Ort::MemoryInfo::CreateCpu(OrtDeviceAllocator, OrtMemTypeCPU);
+
 
   /// now only support 1 input tensor
   Tensor duckdb_input_tensor = input_tensors[0];
-
-  Ort::Value input_tensor = Ort::Value::CreateTensor<float>(
-      memory_info, duckdb_input_tensor.values.data(),
-      duckdb_input_tensor.values.size(), duckdb_input_tensor.shape.data(),
-      duckdb_input_tensor.shape.size());
-
-  Ort::TypeInfo type_info = session.GetOutputTypeInfo(0);
-  auto tensor_info = type_info.GetTensorTypeAndShapeInfo();
-  std::vector<int64_t> output_shape = tensor_info.GetShape();
-  size_t output_size = 1;
-  for (int64_t dim : output_shape) {
-    if (dim < 0) {
-      dim = 1;
-    }
-    output_size *= dim;
-  }
-
-  std::vector<float> output_data(output_size);
-  Ort::Value output_tensor = Ort::Value::CreateTensor<float>(
-      memory_info, output_data.data(), output_size, output_shape.data(),
-      output_shape.size());
-
-  Ort::AllocatorWithDefaultOptions allocator;
-  const std::string input_name =
-      session.GetInputNameAllocated(0, allocator).get();
-  const std::string output_name =
-      session.GetOutputNameAllocated(0, allocator).get();
-
-  const char *input_names[] = {input_name.c_str()};
-  const char *output_names[] = {output_name.c_str()};
-
-  try {
-    session.Run(Ort::RunOptions{nullptr}, input_names, &input_tensor, 1,
-                output_names, &output_tensor, 1);
-  } catch (const Ort::Exception &e) {
-    std::string persistent_message = e.what();
-    throw std::runtime_error(std::string("ONNXRuntime error: ") +
-                             persistent_message);
-  }
-
-  std::vector<Value> shape_vl_list;
-  shape_vl_list.reserve(output_shape.size());
-  for (int64_t dim : output_shape) {
-    shape_vl_list.emplace_back(dim);
-  }
-
-  auto shape_val_list = Value::LIST(std::move(shape_vl_list));
-  std::vector<Value> value_vl_list;
-  value_vl_list.reserve(output_data.size());
-  for (float val : output_data) {
-    value_vl_list.emplace_back(val);
-  }
-  auto value_val_list = Value::LIST(std::move(value_vl_list));
-
-  child_list_t<Value> struct_vl_list;
-  struct_vl_list.push_back(make_pair("shape", shape_val_list));
-  struct_vl_list.push_back(make_pair("value", value_val_list));
-  struct_val_list = Value::STRUCT(std::move(struct_vl_list));
 }
 
 inline void OnnxScalarFun(DataChunk &args, ExpressionState &state,
@@ -156,10 +93,6 @@ inline void OnnxScalarFun(DataChunk &args, ExpressionState &state,
     Value struct_val_list;
     try {
       run_onnx_model_and_extract_results(path, onnx_inputs, struct_val_list);
-    } catch (Ort::Exception &e) {
-      throw std::runtime_error(std::string("ONNXRuntime error: ") + e.what());
-    } catch (std::exception &e) {
-      throw std::runtime_error(std::string("General error: ") + e.what());
     } catch (...) {
       throw std::runtime_error("Unknown error occurred.");
     }

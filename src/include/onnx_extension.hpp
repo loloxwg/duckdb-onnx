@@ -1,6 +1,5 @@
 #pragma once
-
-#include "duckdb.hpp"
+#include "duckdb-onnx/core/common.hpp"
 
 namespace duckdb {
 

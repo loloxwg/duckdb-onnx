@@ -12,7 +12,7 @@ file(MAKE_DIRECTORY ${OUTPUT_DIR})
 set(CMAKE_CXX_STANDARD 11)
 
 include_directories(${OpenCV_INCLUDE_DIRS})
-find_package(OpenCV REQUIRED)
+find_package(OpenCV CONFIG REQUIRED)
 
 add_executable(mnist_inference mnist_inference.cpp)
 add_custom_command(TARGET mnist_inference POST_BUILD
