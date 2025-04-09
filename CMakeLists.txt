@@ -104,56 +104,6 @@ if (APPLE)
 endif ()
 
 if (UNIX AND NOT APPLE)
-    # onnxruntime-linux-x64-glibc2_17-Debug-1.17.3.zip
-    # onnxruntime-linux-x64-glibc2_17-Release-1.17.3.zip
-    if (CMAKE_BUILD_TYPE STREQUAL "Debug")
-        set(ONNXRUNTIME_URL "https://github.com/csukuangfj/onnxruntime-libs/releases/download/v1.17.3/onnxruntime-linux-x64-glibc2_17-Debug-1.17.3.zip")
-        set(ONNXRUNTIME_ZIP "onnxruntime-linux-x64-glibc2_17-Debug-1.17.3.zip")
-        set(ONNXRUNTIME_DIR "${CMAKE_BINARY_DIR}/onnxruntime-linux-x64-glibc2_17-Debug-1.17.3")
-    elseif (CMAKE_BUILD_TYPE STREQUAL "Release")
-        set(ONNXRUNTIME_URL "https://github.com/csukuangfj/onnxruntime-libs/releases/download/v1.17.3/onnxruntime-linux-x64-glibc2_17-Release-1.17.3.zip")
-        set(ONNXRUNTIME_ZIP "onnxruntime-linux-x64-glibc2_17-Release-1.17.3.zip")
-        set(ONNXRUNTIME_DIR "${CMAKE_BINARY_DIR}/onnxruntime-linux-x64-glibc2_17-Release-1.17.3")
-    else ()
-        message(FATAL_ERROR "Unsupported or unspecified CMAKE_BUILD_TYPE. Please specify Debug or Release.")
-    endif ()
-
-
-    if (NOT EXISTS ${CMAKE_BINARY_DIR}/${ONNXRUNTIME_ZIP})
-        message(STATUS "Downloading ONNX Runtime from ${ONNXRUNTIME_URL}...")
-        execute_process(
-                COMMAND wget ${ONNXRUNTIME_URL} -O ${CMAKE_BINARY_DIR}/${ONNXRUNTIME_ZIP}
-                WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
-                RESULT_VARIABLE WGET_RESULT
-        )
-        if (WGET_RESULT)
-            message(FATAL_ERROR "Failed to download ONNX Runtime!")
-        endif ()
-    endif ()
-
-    if (NOT EXISTS ${ONNXRUNTIME_DIR})
-        message(STATUS "Extracting ONNX Runtime...")
-        execute_process(
-                COMMAND unzip -o ${CMAKE_BINARY_DIR}/${ONNXRUNTIME_ZIP} -d ${CMAKE_BINARY_DIR}
-                WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
-                RESULT_VARIABLE UNZIP_RESULT
-        )
-        if (UNZIP_RESULT)
-            message(FATAL_ERROR "Failed to extract ONNX Runtime!")
-        endif ()
-    endif ()
-
-    include_directories(${ONNXRUNTIME_DIR}/include)
-    set(ONNXRUNTIME_LIB ${ONNXRUNTIME_DIR}/lib/libonnxruntime.so)
-
-    target_link_libraries(${EXTENSION_NAME}
-            ${ONNXRUNTIME_LIB}
-    )
-
-    target_link_libraries(${LOADABLE_EXTENSION_NAME}
-            ${ONNXRUNTIME_LIB}
-    )
-
     foreach (TARGET_LIB ${EXTENSION_NAME} ${LOADABLE_EXTENSION_NAME})
         target_compile_options(${TARGET_LIB} PRIVATE -fPIC)
     endforeach ()
