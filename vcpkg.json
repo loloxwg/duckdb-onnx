@@ -1,6 +1,6 @@
 {
   "dependencies": [
     "openssl",
-    "opencv"
-  ]
-}
+    "opencv",
+    "protobuf"
+  ]}
